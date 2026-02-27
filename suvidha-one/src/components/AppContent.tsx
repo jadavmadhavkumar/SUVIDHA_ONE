@@ -11,6 +11,7 @@ import { PaymentModeScreen } from "@/components/PaymentModeScreen";
 import { PaymentProcessingScreen } from "@/components/PaymentScreen";
 import { GrievanceScreen } from "@/components/GrievanceScreen";
 import { SettingsScreen } from "@/components/SettingsScreen";
+import { HistoryScreen } from "@/components/HistoryScreen";
 
 function CertificatesScreen() {
   const { certificates, setCurrentScreen, fontScale } = useAppStore();
@@ -68,38 +69,6 @@ function CertificatesScreen() {
         >
           Apply for Certificate / आवेदन करें
         </button>
-      </main>
-    </div>
-  );
-}
-
-function HistoryScreen() {
-  const { bills, setCurrentScreen, fontScale } = useAppStore();
-  const highContrast = useAppStore((state) => state.highContrast);
-  
-  const bgColor = highContrast ? "bg-black" : "bg-white";
-  const textColor = highContrast ? "text-white" : "text-text-primary";
-  const subTextColor = highContrast ? "text-gray-400" : "text-text-secondary";
-  
-  return (
-    <div className={`${bgColor} min-h-screen flex flex-col`}>
-      <header className={`p-4 border-b ${highContrast ? "border-gray-700" : "border-gray-200"}`}>
-        <button
-          onClick={() => setCurrentScreen("dashboard")}
-          className={`p-3 rounded-lg ${highContrast ? "bg-gray-800" : "bg-background-light"}`}
-        >
-          ← Back
-        </button>
-      </header>
-      
-      <main className="flex-1 p-6">
-        <h1 className={`${textColor} font-bold mb-6`} style={{ fontSize: 40 * fontScale }}>
-          History / इतिहास
-        </h1>
-        
-        <p className={subTextColor} style={{ fontSize: 24 * fontScale }}>
-          No payment history available yet.
-        </p>
       </main>
     </div>
   );

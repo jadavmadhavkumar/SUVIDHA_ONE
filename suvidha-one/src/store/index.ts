@@ -1,23 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Language, AuthMethod, User, Bill, Grievance, Certificate } from "@/types";
+import type { Language, AuthMethod, User, Bill, Grievance, Certificate, Transaction } from "@/types";
 
 interface AppState {
   // Navigation
   currentScreen: string;
   setCurrentScreen: (screen: string) => void;
-  
+
   // Language
   language: Language;
   setLanguage: (lang: Language) => void;
-  
+
   // Authentication
   isAuthenticated: boolean;
   authMethod: AuthMethod | null;
   user: User | null;
   login: (method: AuthMethod, user: User) => void;
   logout: () => void;
-  
+
   // Accessibility
   fontScale: number;
   setFontScale: (scale: number) => void;
@@ -25,27 +25,32 @@ interface AppState {
   setHighContrast: (enabled: boolean) => void;
   voiceEnabled: boolean;
   setVoiceEnabled: (enabled: boolean) => void;
-  
+
   // Bills
   bills: Bill[];
   setBills: (bills: Bill[]) => void;
   selectedBills: string[];
   toggleBillSelection: (billId: string) => void;
   selectAllBills: () => void;
-  
+
   // Grievances
   grievances: Grievance[];
   addGrievance: (grievance: Grievance) => void;
-  
+
   // Certificates
   certificates: Certificate[];
-  
+
   // Payment
   paymentMode: "upi" | "card" | "cash" | null;
   setPaymentMode: (mode: "upi" | "card" | "cash") => void;
   currentTransaction: { id: string; amount: number; status: string } | null;
   setCurrentTransaction: (tx: { id: string; amount: number; status: string } | null) => void;
-  
+
+  // Transaction History
+  transactions: Transaction[];
+  addTransaction: (transaction: Transaction) => void;
+  clearTransactions: () => void;
+
   // Error handling
   error: string | null;
   setError: (error: string | null) => void;
@@ -65,7 +70,7 @@ export const useAppStore = create<AppState>()(
           set({ error: err instanceof Error ? err.message : "Failed to navigate" });
         }
       },
-      
+
       // Language
       language: "hi",
       setLanguage: (lang) => {
@@ -75,16 +80,16 @@ export const useAppStore = create<AppState>()(
           console.error("setLanguage error:", err);
         }
       },
-      
+
       // Authentication
       isAuthenticated: false,
       authMethod: null,
       user: null,
-      login: (method, user) => { 
+      login: (method, user) => {
         try {
-          set({ 
-            isAuthenticated: true, 
-            authMethod: method, 
+          set({
+            isAuthenticated: true,
+            authMethod: method,
             user,
             currentScreen: "dashboard",
             error: null
@@ -94,11 +99,11 @@ export const useAppStore = create<AppState>()(
           set({ error: err instanceof Error ? err.message : "Login failed" });
         }
       },
-      logout: () => { 
+      logout: () => {
         try {
-          set({ 
-            isAuthenticated: false, 
-            authMethod: null, 
+          set({
+            isAuthenticated: false,
+            authMethod: null,
             user: null,
             currentScreen: "welcome",
             selectedBills: [],
@@ -108,7 +113,7 @@ export const useAppStore = create<AppState>()(
           console.error("logout error:", err);
         }
       },
-      
+
       // Accessibility
       fontScale: 1,
       setFontScale: (scale) => {
@@ -134,7 +139,7 @@ export const useAppStore = create<AppState>()(
           console.error("setVoiceEnabled error:", err);
         }
       },
-      
+
       // Bills - Mock data
       bills: [
         { id: "1", provider: "Tata Power", consumerNumber: "1234567890", amount: 1200, dueDate: "2026-03-15", period: "Feb 2026", status: "pending", utilityType: "electricity" },
@@ -170,7 +175,7 @@ export const useAppStore = create<AppState>()(
           return state;
         }
       }),
-      
+
       // Grievances
       grievances: [],
       addGrievance: (grievance) => set((state) => {
@@ -181,12 +186,12 @@ export const useAppStore = create<AppState>()(
           return state;
         }
       }),
-      
+
       // Certificates
       certificates: [
         { id: "1", type: "Birth Certificate", typeHindi: "जन्म प्रमाण पत्र", status: "processing", applicationNumber: "APP2026001", createdAt: "2026-02-15" },
       ],
-      
+
       // Payment
       paymentMode: null,
       setPaymentMode: (mode) => {
@@ -200,11 +205,41 @@ export const useAppStore = create<AppState>()(
       setCurrentTransaction: (tx) => {
         try {
           set({ currentTransaction: tx });
+          // Add to transaction history when transaction is set
+          if (tx) {
+            const newTransaction: Transaction = {
+              id: tx.id,
+              amount: tx.amount,
+              status: tx.status as "pending" | "success" | "failed",
+              type: "Bill Payment",
+              date: new Date().toISOString()
+            };
+            const currentTransactions = get().transactions;
+            set({ transactions: [newTransaction, ...currentTransactions] });
+          }
         } catch (err) {
           console.error("setCurrentTransaction error:", err);
         }
       },
-      
+
+      // Transaction History
+      transactions: [],
+      addTransaction: (transaction) => set((state) => {
+        try {
+          return { transactions: [transaction, ...state.transactions] };
+        } catch (err) {
+          console.error("addTransaction error:", err);
+          return state;
+        }
+      }),
+      clearTransactions: () => {
+        try {
+          set({ transactions: [] });
+        } catch (err) {
+          console.error("clearTransactions error:", err);
+        }
+      },
+
       // Error handling
       error: null,
       setError: (error) => set({ error }),
@@ -217,6 +252,7 @@ export const useAppStore = create<AppState>()(
         fontScale: state.fontScale,
         highContrast: state.highContrast,
         voiceEnabled: state.voiceEnabled,
+        transactions: state.transactions,
       }),
     }
   )
