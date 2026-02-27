@@ -2,7 +2,7 @@
 
 A Next.js 14 kiosk application for unified citizen services in India. "One Kiosk, All Services - Suvidha Sabke Liye"
 
-![SUVIDHA ONE Screenshot](./screenshot.png)
+![SUVIDHA ONE Screenshot](./image.png)
 
 ## Features
 
