@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Frontend Next.js Application
+  suvidha-one:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://suvidha:suvidha123@postgres:5432/suvidha_one
+      - REDIS_URL=redis://redis:6379
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - suvidha-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=suvidha
+      - POSTGRES_PASSWORD=suvidha123
+      - POSTGRES_DB=suvidha_one
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suvidha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - suvidha-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - suvidha-network
+
+  # API Gateway (NGINX)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - suvidha-one
+    networks:
+      - suvidha-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  suvidha-network:
+    driver: bridge
