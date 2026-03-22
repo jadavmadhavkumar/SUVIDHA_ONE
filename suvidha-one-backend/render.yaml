@@ -3,31 +3,17 @@ services:
     name: suvidha-one-backend
     env: rust
     plan: free
+    rootDir: suvidha-one-backend
     buildCommand: pip install edge-tts && cargo build --release
-    startCommand: cargo run --release
+    startCommand: cargo run --release --bin utility-service
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: suvidha-one-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: suvidha-one-redis
-          property: connectionString
+        sync: false
       - key: JWT_PUBLIC_KEY_PEM
         sync: false
       - key: FRONTEND_URLS
         value: https://suvidha-one-frontend.vercel.app
     autoDeploy: true
     healthCheckPath: /health
-
-databases:
-  - name: suvidha-one-db
-    plan: free
-    region: oregon
-
-redis:
-  - name: suvidha-one-redis
-    plan: free
-    region: oregon
