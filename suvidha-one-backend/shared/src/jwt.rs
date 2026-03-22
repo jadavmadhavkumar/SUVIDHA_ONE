@@ -55,6 +55,7 @@ pub enum JwtError {
 pub struct JwtService {
     private_key: EncodingKey,
     public_key: DecodingKey,
+    algorithm: Algorithm,
     issuer: String,
     audience: Vec<String>,
     access_ttl_secs: u64,
@@ -75,11 +76,27 @@ impl JwtService {
                 .map_err(|e| JwtError::Encoding(e.to_string()))?,
             public_key: DecodingKey::from_rsa_pem(public_pem)
                 .map_err(|e| JwtError::Decoding(e.to_string()))?,
+            algorithm: Algorithm::RS256,
             issuer,
             audience,
             access_ttl_secs,
             refresh_ttl_secs,
         })
+    }
+
+    /// Creates a JWT service using HMAC (HS256) for services without RSA keys configured.
+    /// Uses a secret from JWT_SECRET env var, or a default for development.
+    pub fn new_dummy() -> Self {
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "development-secret-key-change-in-production".to_string());
+        Self {
+            private_key: EncodingKey::from_secret(secret.as_bytes()),
+            public_key: DecodingKey::from_secret(secret.as_bytes()),
+            algorithm: Algorithm::HS256,
+            issuer: "suvidha-one-auth".to_string(),
+            audience: vec!["suvidha-one-api".to_string()],
+            access_ttl_secs: 900,
+            refresh_ttl_secs: 604800,
+        }
     }
 
     pub fn issue_access_token(
@@ -106,7 +123,7 @@ impl JwtService {
             lang: lang.to_string(),
         };
 
-        let header = Header::new(Algorithm::RS256);
+        let header = Header::new(self.algorithm);
         encode(&header, &claims, &self.private_key).map_err(|e| JwtError::Encoding(e.to_string()))
     }
 
@@ -128,12 +145,12 @@ impl JwtService {
             family,
         };
 
-        let header = Header::new(Algorithm::RS256);
+        let header = Header::new(self.algorithm);
         encode(&header, &claims, &self.private_key).map_err(|e| JwtError::Encoding(e.to_string()))
     }
 
     pub fn verify_access_token(&self, token: &str) -> Result<AccessClaims, AuthError> {
-        let mut validation = Validation::new(Algorithm::RS256);
+        let mut validation = Validation::new(self.algorithm);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&self.audience);
 
@@ -147,7 +164,7 @@ impl JwtService {
     }
 
     pub fn verify_refresh_token(&self, token: &str) -> Result<RefreshClaims, JwtError> {
-        let mut validation = Validation::new(Algorithm::RS256);
+        let mut validation = Validation::new(self.algorithm);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&self.audience);
         validation.insecure_disable_signature_validation();

@@ -30,6 +30,11 @@ pub fn build_router(state: AppState) -> Router {
 async fn main() -> anyhow::Result<()> {
     shared::tracing::init_tracing();
 
+    // Helper to fix PEM newlines from env vars (Render uses literal \n)
+    fn fix_pem_newlines(pem: String) -> String {
+        pem.replace("\\n", "\n").replace("\\r", "")
+    }
+
     let config = shared::config::load_config()
         .unwrap_or_else(|_| AppConfig {
             server: shared::config::ServerConfig { host: "0.0.0.0".to_string(), port: 3003, env: "dev".to_string() },
@@ -42,8 +47,8 @@ async fn main() -> anyhow::Result<()> {
                 max_connections: 50,
             },
             jwt: shared::config::JwtConfig {
-                private_key_pem: std::env::var("JWT_PUBLIC_KEY_PEM").unwrap_or_default(),
-                public_key_pem: std::env::var("JWT_PUBLIC_KEY_PEM").unwrap_or_default(),
+                private_key_pem: fix_pem_newlines(std::env::var("JWT_PRIVATE_KEY_PEM").unwrap_or_default()),
+                public_key_pem: fix_pem_newlines(std::env::var("JWT_PUBLIC_KEY_PEM").unwrap_or_default()),
                 access_ttl_secs: 900, refresh_ttl_secs: 604800,
                 issuer: "suvidha-one-auth".to_string(),
                 audience: vec!["suvidha-one-api".to_string()],
@@ -61,14 +66,21 @@ async fn main() -> anyhow::Result<()> {
     let redis_pool = deadpool_redis::Config::from_url(&config.redis.url)
         .create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
-    let jwt_svc = JwtService::new(
-        config.jwt.private_key_pem.as_bytes(),
-        config.jwt.public_key_pem.as_bytes(),
-        config.jwt.issuer.clone(),
-        config.jwt.audience.clone(),
-        config.jwt.access_ttl_secs,
-        config.jwt.refresh_ttl_secs,
-    )?;
+    // JWT service - optional for utility-service (only needed for protected endpoints)
+    let jwt_svc = if config.jwt.public_key_pem.is_empty() || config.jwt.private_key_pem.is_empty() {
+        tracing::warn!("JWT keys not configured - using dummy keys. Protected endpoints will fail.");
+        // Create minimal dummy service for health checks etc.
+        JwtService::new_dummy()
+    } else {
+        JwtService::new(
+            config.jwt.private_key_pem.as_bytes(),
+            config.jwt.public_key_pem.as_bytes(),
+            config.jwt.issuer.clone(),
+            config.jwt.audience.clone(),
+            config.jwt.access_ttl_secs,
+            config.jwt.refresh_ttl_secs,
+        )?
+    };
 
     // Initialize TTS service (Edge TTS - free, no API key required)
     let tts_service = TtsService::new();
