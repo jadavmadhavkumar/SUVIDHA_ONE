@@ -1,14 +1,34 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { useTranslation } from "./useTranslation";
+import { useBills } from "@/hooks/useApi";
 import { Header, BottomNav } from "./Header";
-import { Check, Zap, Waves, Flame, AlertCircle, Calendar, FileText } from "lucide-react";
+import { Check, Zap, Waves, Flame, AlertCircle, Calendar, FileText, Loader2 } from "lucide-react";
 
 export function BillsScreen() {
-  const { bills, selectedBills, toggleBillSelection, selectAllBills, setCurrentScreen, fontScale } = useAppStore();
+  const { bills, selectedBills, toggleBillSelection, selectAllBills, setCurrentScreen, fontScale, setBills } = useAppStore();
   const { t } = useTranslation();
   const highContrast = useAppStore((state) => state.highContrast);
+
+  const { data: billsData, isLoading, error, refetch } = useBills();
+
+  useEffect(() => {
+    if (billsData?.bills) {
+      const formattedBills = billsData.bills.map(b => ({
+        id: b.id,
+        provider: b.provider,
+        consumerNumber: b.consumer_number,
+        amount: b.amount,
+        dueDate: b.due_date,
+        period: b.period,
+        status: b.status,
+        utilityType: b.utility_type,
+      }));
+      setBills(formattedBills);
+    }
+  }, [billsData, setBills]);
 
   const bgColor = highContrast ? "bg-black" : "bg-gradient-to-br from-slate-50 via-white to-blue-50";
   const cardBg = highContrast ? "bg-gray-800" : "bg-white";
@@ -38,6 +58,35 @@ export function BillsScreen() {
       default: return FileText;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className={`${bgColor} min-h-screen flex flex-col items-center justify-center`}>
+        <Loader2 className="w-16 h-16 animate-spin text-primary mb-4" />
+        <p className={textColor} style={{ fontSize: 24 * fontScale }}>Loading bills...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`${bgColor} min-h-screen flex flex-col`}>
+        <Header showBack onBack={() => setCurrentScreen("dashboard")} />
+        <main className="flex-1 p-6 flex flex-col items-center justify-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+          <p className={textColor} style={{ fontSize: 24 * fontScale }}>Failed to load bills</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 bg-primary text-white px-6 py-3 rounded-xl font-bold"
+            style={{ fontSize: 20 * fontScale }}
+          >
+            Retry
+          </button>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className={`${bgColor} min-h-screen flex flex-col`}>
