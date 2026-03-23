@@ -9,6 +9,8 @@ pub fn utility_routes() -> Router<crate::AppState> {
         .route("/bills/fetch", post(handlers::bill::fetch_bills))
         .route("/bills/:bill_id", get(handlers::bill::get_bill))
         .route("/services", get(handlers::service::list_services))
+        .route("/payment/create", post(handlers::payment::create_kiosk_payment))
+        .route("/payment/verify", post(handlers::payment::verify_kiosk_payment))
 }
 
 pub fn auth_routes() -> Router<crate::AppState> {
