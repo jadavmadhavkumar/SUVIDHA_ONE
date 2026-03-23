@@ -13,6 +13,7 @@ pub enum SmsError {
     RateLimitExceeded,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct Fast2SmsRequest {
     authorization: String,
@@ -22,6 +23,7 @@ struct Fast2SmsRequest {
     numbers: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Fast2SmsResponse {
     #[serde(rename = "return")]
@@ -30,6 +32,7 @@ struct Fast2SmsResponse {
     message: Vec<String>,
 }
 
+#[allow(dead_code)]
 pub struct SmsService {
     api_key: String,
     sender_id: String,

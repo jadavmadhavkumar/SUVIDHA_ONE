@@ -70,8 +70,22 @@ async fn main() -> anyhow::Result<()> {
             whatsapp: None,
         });
 
-    let redis_pool = deadpool_redis::Config::from_url(&config.redis.url)
-        .create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+    // Configure Redis pool with TLS support for Upstash
+    let redis_url = &config.redis.url;
+    let redis_pool = if redis_url.starts_with("rediss://") {
+        let cfg = deadpool_redis::Config {
+            url: Some(redis_url.replace("rediss://", "redis://")),
+            pool: Some(deadpool_redis::PoolConfig {
+                max_size: config.redis.max_connections as usize,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        cfg.create_pool(Some(deadpool_redis::Runtime::Tokio1))?
+    } else {
+        deadpool_redis::Config::from_url(redis_url)
+            .create_pool(Some(deadpool_redis::Runtime::Tokio1))?
+    };
 
     let jwt_svc = JwtService::new(
         config.jwt.private_key_pem.as_bytes(),

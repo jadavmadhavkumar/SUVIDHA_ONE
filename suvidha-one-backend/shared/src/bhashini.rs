@@ -338,6 +338,7 @@ struct PipelineResponse {
     pipeline_response: Vec<TaskResponse>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct TaskResponse {
     #[serde(rename = "taskType")]
