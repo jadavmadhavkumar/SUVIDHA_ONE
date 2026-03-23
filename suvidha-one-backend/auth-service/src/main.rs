@@ -68,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
             digilocker: None,
             sms: None,
             whatsapp: None,
+            upstash: None,
         });
 
     // Configure Redis pool with TLS support for Upstash

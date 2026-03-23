@@ -57,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
                 audience: vec!["suvidha-one-api".to_string()],
             },
             uidai: None, npci: None, digilocker: None, sms: None, whatsapp: None,
+            upstash: None,
         });
 
     let db_pool = PgPoolOptions::new()

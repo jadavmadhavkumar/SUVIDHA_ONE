@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
             digilocker: None,
             sms: None,
             whatsapp: None,
+            upstash: None,
         });
 
     let db_pool = PgPoolOptions::new()
