@@ -97,14 +97,7 @@ async fn main() -> anyhow::Result<()> {
         Ok(svc) => svc,
         Err(e) => {
             tracing::warn!("Failed to initialize JWT with RSA keys: {}. Using HMAC fallback.", e);
-            let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
-            JwtService::new_dummy(
-                &jwt_secret,
-                config.jwt.issuer.clone(),
-                config.jwt.audience.clone(),
-                config.jwt.access_ttl_secs,
-                config.jwt.refresh_ttl_secs,
-            )
+            JwtService::new_dummy()
         }
     };
 

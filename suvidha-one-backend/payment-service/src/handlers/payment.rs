@@ -18,6 +18,30 @@ use shared::{
     },
 };
 
+fn validate_indian_phone(phone: &str) -> Result<String, AppError> {
+    let cleaned = phone.trim().replace(&[' ', '-', '(', ')'][..], "");
+
+    let normalized = if cleaned.starts_with("+91") {
+        cleaned
+    } else if cleaned.starts_with("91") && cleaned.len() == 12 {
+        format!("+{}", cleaned)
+    } else if cleaned.len() == 10 && cleaned.chars().all(|c| c.is_ascii_digit()) {
+        format!("+91{}", cleaned)
+    } else {
+        return Err(AppError::Validation(
+            "Phone number must be a valid Indian number (+91XXXXXXXXXX)".to_string(),
+        ));
+    };
+
+    if !normalized.starts_with("+91") || normalized.len() != 13 {
+        return Err(AppError::Validation(
+            "Phone number must be in format +91XXXXXXXXXX".to_string(),
+        ));
+    }
+
+    Ok(normalized)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct InitiatePaymentRequest {
     pub bill_ids: Vec<Uuid>,
@@ -79,8 +103,7 @@ pub async fn create_kiosk_payment(
     Json(req): Json<CreateKioskPaymentRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     // Validate phone format
-    let phone = shared::sms::SmsService::validate_phone(&req.phone)
-        .map_err(|e| AppError::Validation(e.to_string()))?;
+    let phone = validate_indian_phone(&req.phone)?;
 
     // Check rate limiting (max 10 payments per hour per phone)
     let rate_key = format!("payment:rate:{}", phone);
@@ -208,19 +231,18 @@ pub async fn verify_kiosk_payment(
         .map_err(|e| AppError::Cache(e.to_string()))?;
 
     // Verify signature
-    razorpay.verify_payment_signature(
+    if let Err(_e) = razorpay.verify_payment_signature(
         &req.razorpay_order_id,
         &req.razorpay_payment_id,
         &req.razorpay_signature,
-    ).map_err(|e| {
+    ) {
         // Release idempotency lock on failure
-        let _: () = redis::cmd("DEL")
+        let _: Result<i64, _> = redis::cmd("DEL")
             .arg(&idempotency_key)
             .query_async(&mut *conn)
-            .await
-            .map_err(|_| ());
-        AppError::Payment(PaymentError::Unauthorized)
-    })?;
+            .await;
+        return Err(AppError::Payment(PaymentError::Unauthorized));
+    }
 
     // Check if order has expired
     let expires_at: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
@@ -232,11 +254,10 @@ pub async fn verify_kiosk_payment(
 
     if let Some(expires) = expires_at {
         if chrono::Utc::now() > expires {
-            let _: () = redis::cmd("DEL")
+            let _: Result<i64, _> = redis::cmd("DEL")
                 .arg(&idempotency_key)
                 .query_async(&mut *conn)
-                .await
-                .map_err(|_| ());
+                .await;
             return Err(AppError::Validation("Payment order has expired".to_string()));
         }
     }
@@ -316,11 +337,10 @@ pub async fn verify_kiosk_payment(
                 .map_err(|e| AppError::Cache(e.to_string()))?;
 
             // Release idempotency lock but keep result
-            let _: () = redis::cmd("DEL")
+            let _: Result<i64, _> = redis::cmd("DEL")
                 .arg(&idempotency_key)
                 .query_async(&mut *conn)
-                .await
-                .map_err(|_| ());
+                .await;
 
             tracing::info!(
                 payment_id = %payment_id,
@@ -346,8 +366,7 @@ pub async fn get_payment_history(
     State(state): State<AppState>,
     Path(phone): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let normalized_phone = shared::sms::SmsService::validate_phone(&phone)
-        .map_err(|e| AppError::Validation(e.to_string()))?;
+    let normalized_phone = validate_indian_phone(&phone)?;
 
     let payments: Vec<(Uuid, Decimal, String, Option<String>, Option<String>, chrono::DateTime<chrono::Utc>, Option<chrono::DateTime<chrono::Utc>>)> = sqlx::query_as(
         r#"SELECT payment_id, amount, status, service_type, razorpay_order_id, created_at, paid_at
