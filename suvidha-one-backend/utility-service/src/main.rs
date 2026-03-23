@@ -97,7 +97,7 @@ async fn main() -> anyhow::Result<()> {
             svc
         }
         Err(e) => {
-            tracing::warn!("⚠️  Bhashini not configured: {}. Voice features will use dummy service.", e);
+            tracing::info!("ℹ️  Bhashini not configured: {}. Voice features will use fallback TTS.", e);
             BhashiniService::new_dummy()
         }
     };
