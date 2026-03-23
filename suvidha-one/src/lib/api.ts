@@ -212,25 +212,34 @@ async function fetchApi<T>(
   useAuthToken = false
 ): Promise<ApiResponse<T>> {
   const token = useAuthToken ? localStorage.getItem('access_token') : null;
-  
+
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log('API Request:', url, options.method || 'GET');
+    
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
+      // Add timeout handling
+      signal: AbortSignal.timeout(30000),
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('API Error Response:', response.status, errorData);
       return {
         success: false,
-        error: data.error || data.message || 'Request failed',
+        error: errorData.error || errorData.message || `HTTP ${response.status}: Request failed`,
       };
     }
+
+    const data = await response.json();
+    console.log('API Response:', endpoint, data);
 
     return {
       success: true,
@@ -239,9 +248,31 @@ async function fetchApi<T>(
     };
   } catch (error) {
     console.error('API Error:', error);
+    
+    // Handle specific error types
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return {
+        success: false,
+        error: 'Network error: Unable to connect to API server. Please check if the backend is running.',
+      };
+    }
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'Request timeout: The server took too long to respond.',
+        };
+      }
+      return {
+        success: false,
+        error: error.message || 'Network error',
+      };
+    }
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      error: 'An unexpected error occurred',
     };
   }
 }
