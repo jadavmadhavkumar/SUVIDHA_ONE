@@ -9,6 +9,11 @@ use shared::{AppConfig, JwtService, SmsService};
 use deadpool_redis::Pool;
 use tower_http::cors::{Any, CorsLayer};
 
+/// Fix PEM keys with escaped newlines from Render environment
+fn fix_pem_newlines(pem: &str) -> String {
+    pem.replace("\\n", "\n").replace("\\r", "")
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub jwt_svc: Arc<JwtService>,
@@ -48,8 +53,10 @@ async fn main() -> anyhow::Result<()> {
             },
             jwt: shared::config::JwtConfig {
                 private_key_pem: std::env::var("JWT_PRIVATE_KEY_PEM")
+                    .map(|k| fix_pem_newlines(&k))
                     .unwrap_or_else(|_| include_str!("../../keys/private.pem").to_string()),
                 public_key_pem: std::env::var("JWT_PUBLIC_KEY_PEM")
+                    .map(|k| fix_pem_newlines(&k))
                     .unwrap_or_else(|_| include_str!("../../keys/public.pem").to_string()),
                 access_ttl_secs: 900,
                 refresh_ttl_secs: 604800,

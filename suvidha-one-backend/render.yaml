@@ -1,8 +1,12 @@
 services:
+  # ─────────────────────────────────────────────────────────────
+  # Auth Service - OTP, JWT, Session management
+  # ─────────────────────────────────────────────────────────────
   - type: web
     name: suvidha-one-auth-service
-    env: rust
+    runtime: rust
     plan: free
+    region: oregon
     rootDir: suvidha-one-backend
     buildCommand: pip install edge-tts && SQLX_OFFLINE=true cargo build --release --bin auth-service
     startCommand: ./target/release/auth-service
@@ -29,15 +33,21 @@ services:
         value: "true"
       - key: RENDER
         value: "true"
+      - key: RUST_LOG
+        value: info,tower_http=debug
       - key: PORT
-        sync: false
+        value: "3001"
     autoDeploy: true
     healthCheckPath: /health
 
+  # ─────────────────────────────────────────────────────────────
+  # Payment Service - Razorpay integration
+  # ─────────────────────────────────────────────────────────────
   - type: web
     name: suvidha-one-payment-service
-    env: rust
+    runtime: rust
     plan: free
+    region: oregon
     rootDir: suvidha-one-backend
     buildCommand: pip install edge-tts && SQLX_OFFLINE=true cargo build --release --bin payment-service
     startCommand: ./target/release/payment-service
@@ -58,8 +68,10 @@ services:
         value: "true"
       - key: RENDER
         value: "true"
+      - key: RUST_LOG
+        value: info,tower_http=debug
       - key: PORT
-        sync: false
+        value: "3002"
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
@@ -71,10 +83,14 @@ services:
     autoDeploy: true
     healthCheckPath: /health
 
+  # ─────────────────────────────────────────────────────────────
+  # Utility Service - Voice/Bhashini, Services catalog
+  # ─────────────────────────────────────────────────────────────
   - type: web
     name: suvidha-one-utility-service
-    env: rust
+    runtime: rust
     plan: free
+    region: oregon
     rootDir: suvidha-one-backend
     buildCommand: pip install edge-tts && SQLX_OFFLINE=true cargo build --release --bin utility-service
     startCommand: ./target/release/utility-service
@@ -89,13 +105,26 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: OTP_HMAC_SECRET
+        sync: false
       - key: FRONTEND_URLS
         value: https://suvidha-one-frontend.vercel.app
       - key: SQLX_OFFLINE
         value: "true"
       - key: RENDER
         value: "true"
+      - key: RUST_LOG
+        value: info,tower_http=debug
       - key: PORT
+        value: "3003"
+      # Bhashini Voice API credentials
+      - key: BHASHINI_USER_ID
         sync: false
+      - key: BHASHINI_API_KEY
+        sync: false
+      - key: BHASHINI_PIPELINE_ID
+        value: "64392f96daac500b55c543cd"
+      - key: BHASHINI_CONFIG_URL
+        value: "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
     autoDeploy: true
     healthCheckPath: /health

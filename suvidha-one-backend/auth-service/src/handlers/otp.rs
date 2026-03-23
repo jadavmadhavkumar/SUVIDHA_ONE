@@ -12,11 +12,31 @@ use shared::{
     AppError,
     SmsError,
 };
+use std::sync::OnceLock;
 
 const OTP_TTL_SECS: usize = 300; // 5 minutes
 const OTP_MAX_ATTEMPTS: u8 = 3;
 const OTP_RATE_LIMIT: u8 = 3; // 3 OTPs per hour
 const RATE_LIMIT_WINDOW_SECS: usize = 3600; // 1 hour
+
+/// Get OTP HMAC secret - cached for performance, required in production
+fn get_otp_secret() -> &'static str {
+    static OTP_SECRET: OnceLock<String> = OnceLock::new();
+    OTP_SECRET.get_or_init(|| {
+        std::env::var("OTP_HMAC_SECRET").unwrap_or_else(|_| {
+            let is_render = std::env::var("RENDER").is_ok();
+            if is_render {
+                tracing::error!("OTP_HMAC_SECRET not set in production! Using unsafe default.");
+            }
+            // Use a different default for local dev vs render
+            if is_render {
+                "CHANGE_THIS_SECRET_IN_RENDER_DASHBOARD_32CHARS".to_string()
+            } else {
+                "local-dev-secret-not-for-production".to_string()
+            }
+        })
+    })
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SendOtpRequest {
@@ -86,7 +106,7 @@ pub async fn send_otp(
     let otp: u32 = rand::thread_rng().gen_range(100000..=999999);
 
     // Hash OTP for secure storage
-    let secret = std::env::var("OTP_HMAC_SECRET").unwrap_or_else(|_| "default-secret".to_string());
+    let secret = get_otp_secret();
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
         .map_err(|_| AppError::Internal("HMAC init failed".into()))?;
     mac.update(otp.to_string().as_bytes());
@@ -181,7 +201,7 @@ pub async fn verify_otp(
         .map_err(|e| AppError::Cache(e.to_string()))?;
 
     // Hash submitted OTP for comparison
-    let secret = std::env::var("OTP_HMAC_SECRET").unwrap_or_else(|_| "default-secret".to_string());
+    let secret = get_otp_secret();
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
         .map_err(|_| AppError::Internal("HMAC init failed".into()))?;
     mac.update(req.otp.as_bytes());
