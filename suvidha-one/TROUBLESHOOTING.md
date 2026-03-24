@@ -64,6 +64,39 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+### 2. "Cache service unavailable" (Error 9006)
+
+**Symptoms:**
+- OTP sending fails with: `{"error_code":9006,"message":"Cache service unavailable."}`
+- Session creation fails
+- Some services return errors
+
+**Cause:** Redis cache service is down or not connected
+
+**Fix (Render Deployment):**
+1. Go to Render Dashboard
+2. Check if Redis instance is running
+3. Ensure `REDIS_URL` environment variable is set
+4. Restart the backend service
+
+**Fix (Local Development):**
+```bash
+# Start Redis container
+docker run -d -p 6379:6379 --name suvidha-redis redis:alpine
+
+# Or start all backend services (includes Redis)
+cd /mnt/c/SUVIDHA_ONE/suvidha-one-backend
+docker-compose up -d
+
+# Verify Redis is running
+docker ps | grep redis
+```
+
+**Temporary Workaround (Development Only):**
+- Some services may work without Redis
+- Auth (OTP) requires Redis for OTP storage
+- Sessions require Redis for session storage
+
 #### D. Network/Firewall Issues
 ```bash
 # Test connectivity
