@@ -22,16 +22,36 @@ type AuthStep = 'phone' | 'otp' | 'success';
 interface AuthScreenProps {
   onSuccess?: (mobile: string, token: string) => void;
   kioskId?: string;
+  allowSkip?: boolean; // Allow skipping OTP for testing
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onSuccess,
   kioskId = 'KIOSK001',
+  allowSkip = true, // Enable skip by default for testing
 }) => {
   const [step, setStep] = useState<AuthStep>('phone');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState<string | null>(null);
+
+  // Generate mock token for skip mode
+  const generateMockToken = () => {
+    return 'mock_jwt_token_' + Math.random().toString(36).substring(2);
+  };
+
+  // Skip OTP for testing
+  const handleSkipOtp = () => {
+    const mockMobile = '+919999999999';
+    const mockToken = generateMockToken();
+    localStorage.setItem('access_token', mockToken);
+    localStorage.setItem('refresh_token', mockToken);
+    localStorage.setItem('user_mobile', mockMobile);
+    setStep('success');
+    setTimeout(() => {
+      onSuccess?.(mockMobile, mockToken);
+    }, 1000);
+  };
 
   // Send OTP Mutation
   const sendOtpMutation = useMutation({
@@ -249,6 +269,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   </>
                 )}
               </button>
+
+              {/* Skip OTP Button for Testing */}
+              {allowSkip && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={handleSkipOtp}
+                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light
+                             underline underline-offset-2"
+                  >
+                    Skip OTP (Test Mode) →
+                  </button>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Use this to test features without SMS
+                  </p>
+                </div>
+              )}
 
               <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                 By continuing, you agree to our Terms of Service
