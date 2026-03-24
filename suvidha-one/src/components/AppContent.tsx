@@ -26,39 +26,24 @@ export type Screen =
   | 'settings';
 
 export function AppContent() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('auth');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userMobile, setUserMobile] = useState<string>('');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
 
-  // Check authentication on mount
+  // Temporary test mode: bypass OTP/auth and allow direct app access
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-    if (token) {
-      setIsAuthenticated(true);
-      setCurrentScreen('dashboard');
+    if (!token) {
+      localStorage.setItem('access_token', `test_token_${Date.now()}`);
+      localStorage.setItem('refresh_token', `test_refresh_${Date.now()}`);
     }
+    setCurrentScreen('dashboard');
   }, []);
 
-  const handleAuthSuccess = (mobile: string, token: string) => {
-    setUserMobile(mobile);
-    setIsAuthenticated(true);
+  const handleAuthSuccess = () => {
     setCurrentScreen('dashboard');
   };
 
   const handleNavigate = (screen: Screen) => {
-    if (!isAuthenticated && screen !== 'auth') {
-      setCurrentScreen('auth');
-      return;
-    }
     setCurrentScreen(screen);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setIsAuthenticated(false);
-    setUserMobile('');
-    setCurrentScreen('auth');
   };
 
   // Render current screen

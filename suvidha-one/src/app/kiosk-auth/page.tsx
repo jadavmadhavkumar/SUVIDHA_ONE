@@ -1,36 +1,26 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PhoneScreen,
-  OtpScreen,
   SuccessScreen,
   ErrorScreen,
   LanguageToggle,
 } from "@/components/kiosk";
-import { useOtpAuth } from "@/hooks/useOtpAuth";
 import { useKioskMode } from "@/hooks/useKioskMode";
 import { useAppStore } from "@/store";
 
-type AuthStep = "phone" | "otp" | "success" | "error";
+type AuthStep = "phone" | "success" | "error";
 
 export default function KioskAuthPage() {
   const [step, setStep] = useState<AuthStep>("phone");
   const [highContrast, setHighContrast] = useState(false);
-  
-  const {
-    loading,
-    error,
-    phone,
-    sendOtp,
-    verifyOtp,
-    resendOtp,
-    clearError,
-  } = useOtpAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { language, setLanguage } = useAppStore();
-  const { isFullscreen } = useKioskMode({
+  useKioskMode({
     autoFullscreen: true,
     wakeLock: true,
   });
@@ -41,37 +31,31 @@ export default function KioskAuthPage() {
   const handlePhoneSubmit = useCallback(
     async (phoneNumber: string) => {
       try {
-        await sendOtp(phoneNumber);
-        setStep("otp");
-      } catch (err) {
-        setStep("error");
-      }
-    },
-    [sendOtp]
-  );
-
-  // Handle OTP verification
-  const handleOtpVerify = useCallback(
-    async (otp: string) => {
-      const result = await verifyOtp(otp);
-      if (result.success && result.user) {
-        login("otp", result.user);
+        setLoading(true);
+        setError(null);
+        login("guest", {
+          id: `guest_${Date.now()}`,
+          name: "Test User",
+          mobile: phoneNumber,
+        });
+        localStorage.setItem("access_token", `test_token_${Date.now()}`);
+        localStorage.setItem("refresh_token", `test_refresh_${Date.now()}`);
         setStep("success");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to continue");
+        setStep("error");
+      } finally {
+        setLoading(false);
       }
     },
-    [verifyOtp, login]
+    [login]
   );
-
-  // Handle OTP resend
-  const handleOtpResend = useCallback(async () => {
-    await resendOtp();
-  }, [resendOtp]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
-    clearError();
+    setError(null);
     setStep("phone");
-  }, [clearError]);
+  }, []);
 
   // Handle success continuation
   const handleSuccess = useCallback(() => {
@@ -87,9 +71,9 @@ export default function KioskAuthPage() {
 
   // Handle retry from error
   const handleRetry = useCallback(() => {
-    clearError();
+    setError(null);
     setStep("phone");
-  }, [clearError]);
+  }, []);
 
   // Toggle language
   const handleToggleLanguage = useCallback(() => {
@@ -136,26 +120,6 @@ export default function KioskAuthPage() {
               loading={loading}
               error={error}
               highContrast={highContrast}
-            />
-          </motion.div>
-        )}
-
-        {step === "otp" && (
-          <motion.div
-            key="otp"
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-          >
-            <OtpScreen
-              phone={phone.replace("+91", "")}
-              onOtpVerify={handleOtpVerify}
-              onOtpResend={handleOtpResend}
-              onBack={handleBack}
-              loading={loading}
-              error={error}
-              highContrast={highContrast}
-              resendCooldown={60}
             />
           </motion.div>
         )}
